@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户满意度调查</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', system-ui, sans-serif;
+        }
+        
+        .question-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .option-label {
+            transition: all 0.2s ease;
+        }
+        
+        .option-label:hover {
+            background-color: #f9fafb;
+            transform: translateX(6px);
+        }
+        
+        .selected {
+            background-color: #f3f4f6;
+            border-color: #57534e;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-700 min-h-screen">
+    <div class="max-w-lg mx-auto bg-white min-h-screen shadow-xl overflow-hidden">
+        <!-- 头部 -->
+        <header class="bg-white border-b border-stone-100 sticky top-0 z-50">
+            <div class="px-6 py-6 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-stone-800 rounded-2xl flex items-center justify-center text-white text-2xl">📋</div>
+                    <div>
+                        <h1 class="text-2xl font-medium text-stone-800">用户满意度调查</h1>
+                        <p class="text-sm text-stone-500">仅需3题 · 感谢您的宝贵意见</p>
+                    </div>
+                </div>
+                <div class="text-sm font-medium text-stone-500">
+                    <span id="progress">1</span>/3
+                </div>
+            </div>
+            <div class="h-1 bg-stone-100">
+                <div id="progress-bar" class="h-1 bg-stone-800 w-1/3 transition-all duration-300"></div>
+            </div>
+        </header>
+
+        <main class="px-6 pt-8 pb-28">
+            <form id="survey-form">
+                <div id="questions-container" class="space-y-10"></div>
+            </form>
+        </main>
+
+        <!-- 底部按钮 -->
+        <footer class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white border-t border-stone-100">
+            <div class="flex items-center justify-between px-6 py-5">
+                <button onclick="prevQuestion()" id="prev-btn"
+                        class="flex items-center gap-2 px-6 py-3.5 text-stone-500 hover:text-stone-700 disabled:opacity-40 transition-colors">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>上一题</span>
+                </button>
+                
+                <button onclick="nextQuestion()" id="next-btn"
+                        class="flex-1 mx-4 bg-stone-800 hover:bg-stone-900 text-white py-4 rounded-3xl font-medium transition-all active:scale-[0.97]">
+                    <span id="next-text">下一题</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 提交成功弹窗 -->
+    <div id="success-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+        <div class="bg-white rounded-3xl w-full max-w-xs p-8 text-center">
+            <div class="w-20 h-20 mx-auto bg-emerald-100 rounded-full flex items-center justify-center text-5xl mb-6">
+                🎉
+            </div>
+            <h3 class="text-2xl font-medium text-stone-800 mb-3">感谢您的参与！</h3>
+            <p class="text-stone-500 mb-8">您的意见将帮助我们不断改进</p>
+            <button onclick="restartSurvey()" 
+                    class="w-full py-4 bg-stone-800 hover:bg-stone-900 text-white rounded-3xl font-medium text-lg transition-colors">
+                重新填写问卷
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 真实调查题目
+        const questionBank = [
+            {
+                id: 1,
+                title: "您对我们产品或服务的整体满意度如何？",
+                options: ["非常满意", "比较满意", "一般", "不满意"]
+            },
+            {
+                id: 2,
+                title: "您最看重产品/服务的哪一方面？",
+                options: ["品质与可靠性", "价格性价比", "使用体验", "售后服务"]
+            },
+            {
+                id: 3,
+                title: "您会向身边的朋友或同事推荐我们的产品/服务吗？",
+                options: ["非常愿意", "可能会推荐", "不确定", "不太愿意"]
+            }
+        ];
+
+        let questions = [];
+        let currentQuestion = 0;
+        let answers = {};
+
+        function getRandomQuestions() {
+            // 随机打乱顺序
+            questions = [...questionBank].sort(() => Math.random() - 0.5);
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            questions.forEach((q, index) => {
+                const html = `
+                    <div class="question-card bg-white border border-stone-100 rounded-3xl p-7 shadow-sm" id="q-${q.id}" style="display: ${index === 0 ? 'block' : 'none'}">
+                        <div class="flex gap-4 mb-8">
+                            <div class="flex-shrink-0 w-8 h-8 bg-stone-100 text-stone-600 rounded-2xl flex items-center justify-center font-medium text-lg">
+                                ${index + 1}
+                            </div>
+                            <h2 class="text-xl font-medium leading-tight text-stone-800">${q.title}</h2>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            ${q.options.map((option, i) => `
+                                <label onclick="selectOption(${q.id}, '${option}')" 
+                                       class="option-label flex items-center gap-4 px-6 py-5 border border-stone-200 rounded-3xl cursor-pointer text-base">
+                                    <input type="radio" name="q${q.id}" class="w-5 h-5 accent-stone-700">
+                                    <span>${option}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        function showQuestion(index) {
+            document.querySelectorAll('.question-card').forEach((card, i) => {
+                card.style.display = i === index ? 'block' : 'none';
+            });
+
+            document.getElementById('progress').textContent = index + 1;
+            document.getElementById('progress-bar').style.width = `${((index + 1) / 3) * 100}%`;
+
+            document.getElementById('prev-btn').disabled = index === 0;
+
+            const nextBtn = document.getElementById('next-btn');
+            if (index === 2) {
+                nextBtn.innerHTML = `提交问卷 <i class="fas fa-check ml-1"></i>`;
+            } else {
+                nextBtn.innerHTML = `下一题 <i class="fas fa-arrow-right ml-1"></i>`;
+            }
+        }
+
+        function selectOption(qid, value) {
+            answers[qid] = value;
+            
+            // 高亮选中项
+            const labels = document.querySelectorAll(`#q-${qid} label`);
+            labels.forEach(label => {
+                if (label.textContent.includes(value)) {
+                    label.classList.add('selected', 'border-stone-700');
+                } else {
+                    label.classList.remove('selected', 'border-stone-700');
+                }
+            });
+        }
+
+        function nextQuestion() {
+            const currentQ = questions[currentQuestion];
+            
+            if (!answers[currentQ.id]) {
+                alert("请选择一个选项后再继续");
+                return;
+            }
+
+            if (currentQuestion < 2) {
+                currentQuestion++;
+                showQuestion(currentQuestion);
+            } else {
+                submitSurvey();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                showQuestion(currentQuestion);
+            }
+        }
+
+        function submitSurvey() {
+            console.log("问卷提交成功！", answers);
+            document.getElementById('success-modal').classList.remove('hidden');
+            document.getElementById('success-modal').classList.add('flex');
+        }
+
+        function restartSurvey() {
+            answers = {};
+            currentQuestion = 0;
+            document.getElementById('success-modal').classList.add('hidden');
+            document.getElementById('success-modal').classList.remove('flex');
+            showQuestion(0);
+        }
+
+        // 初始化
+        window.onload = () => {
+            getRandomQuestions();
+            renderQuestions();
+            showQuestion(0);
+        };
+    </script>
+</body>
+</html>
